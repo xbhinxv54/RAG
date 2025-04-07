@@ -6,15 +6,16 @@ from typing import Literal
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
+from langchain_core.tools import tool
 from typing_extensions import Annotated
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
 from langchain.prompts import ChatPromptTemplate
-from langgraph.graph import START, StateGraph,END
 from langchain.memory import ConversationBufferMemory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_community.document_loaders import WebBaseLoader
+from langgraph.graph import START, StateGraph,END,MessagesState
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
@@ -48,11 +49,11 @@ encode_kwargs = {'normalize_embeddings': False}
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2",model_kwargs=model_kwargs, encode_kwargs=encode_kwargs)
 
 
-# vector_store = Chroma(
-#     collection_name="example_collection",
-#     embedding_function=embeddings,
-#     persist_directory="./chroma_langchain_db",  
-# )
+vector_store = Chroma(
+    collection_name="example_collection",
+    embedding_function=embeddings,
+    persist_directory="./chroma_langchain_db",  
+)
 print("Loading documents...")
 loader = WebBaseLoader(
     web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
@@ -85,13 +86,21 @@ for i, document in enumerate(all_splits):
 
 
 
-vector_store = InMemoryVectorStore(embeddings)
-_ = vector_store.add_documents(all_splits)
+# vector_store = InMemoryVectorStore(embeddings)
+# _ = vector_store.add_documents(all_splits)
 
-# _ = vector_store.add_documents(documents=all_splits)
+_ = vector_store.add_documents(documents=all_splits)
 
 prompt = hub.pull("rlm/rag-prompt")
 
+
+@tool(response_format="content_and_artifact")
+def retrieve(query: str):
+    """Retrieve documents from the vector store."""
+    retrieved_docs = vector_store.similarity_search(query, k=3)
+    serialized="\n\n".join((f"Source: {doc.metadata['source']}\n" f"Content: {doc.page_content}") for doc in retrieved_docs)
+
+    return retrieved_docs,serialized
 
 class Search(TypedDict):
     query:Annotated[str, ..., "Search query to run."]
