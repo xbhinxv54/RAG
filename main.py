@@ -86,21 +86,21 @@ for i, document in enumerate(all_splits):
 
 
 
-# vector_store = InMemoryVectorStore(embeddings)
-# _ = vector_store.add_documents(all_splits)
+vector_store = InMemoryVectorStore(embeddings)
+_ = vector_store.add_documents(all_splits)
 
-_ = vector_store.add_documents(documents=all_splits)
+# _ = vector_store.add_documents(documents=all_splits)
 
 prompt = hub.pull("rlm/rag-prompt")
 
 
-@tool(response_format="content_and_artifact")
-def retrieve(query: str):
-    """Retrieve documents from the vector store."""
-    retrieved_docs = vector_store.similarity_search(query, k=3)
-    serialized="\n\n".join((f"Source: {doc.metadata['source']}\n" f"Content: {doc.page_content}") for doc in retrieved_docs)
+# @tool(response_format="content_and_artifact")
+# def retrieve(query: str):
+#     """Retrieve documents from the vector store."""
+#     retrieved_docs = vector_store.similarity_search(query, k=3)
+#     serialized="\n\n".join((f"Source: {doc.metadata['source']}\n" f"Content: {doc.page_content}") for doc in retrieved_docs)
 
-    return retrieved_docs,serialized
+#     return retrieved_docs,serialized
 
 class Search(TypedDict):
     query:Annotated[str, ..., "Search query to run."]
