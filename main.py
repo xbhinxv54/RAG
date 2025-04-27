@@ -86,10 +86,10 @@ for i, document in enumerate(all_splits):
 
 
 
-vector_store = InMemoryVectorStore(embeddings)
-_ = vector_store.add_documents(all_splits)
+# vector_store = InMemoryVectorStore(embeddings)
+# _ = vector_store.add_documents(all_splits)
 
-# _ = vector_store.add_documents(documents=all_splits)
+_ = vector_store.add_documents(documents=all_splits)
 
 prompt = hub.pull("rlm/rag-prompt")
 
@@ -102,34 +102,34 @@ prompt = hub.pull("rlm/rag-prompt")
 
 #     return retrieved_docs,serialized
 
-class Search(TypedDict):
-    query:Annotated[str, ..., "Search query to run."]
-    section: Annotated[
-        Literal["beginning", "middle", "end"],
-        ...,
-        "Section to query.",
-    ]
+# class Search(TypedDict):
+#     query:Annotated[str, ..., "Search query to run."]
+#     section: Annotated[
+#         Literal["beginning", "middle", "end"],
+#         ...,
+#         "Section to query.",
+#     ]
 
 class State(TypedDict):
     question:str
-    query:Search
+    #query:Search
     answer:str
     context:List[Document]
 
 
-def analyze_query(state: State):
-    structured_llm = llm.with_structured_output(Search)
-    query = structured_llm.invoke(state["question"])
-    return {"query": query} #the query part of the state is updated with the structured query, query(Search) object is not returned
+# def analyze_query(state: State):
+#     structured_llm = llm.with_structured_output(Search)
+#     query = structured_llm.invoke(state["question"])
+#     return {"query": query} #the query part of the state is updated with the structured query, query(Search) object is not returned
 
 def retrieve(state:State):
-    #retrieved_docs = vector_store.similarity_search(state["question"])
-    query = state["query"]
-    retrieved_docs = vector_store.similarity_search(
-        query["query"],
-        filter=lambda doc: doc.metadata.get("section") == query["section"],
-        k=3,
-    )
+    retrieved_docs = vector_store.similarity_search(state["question"],k=3)
+    # query = state["query"]
+    # retrieved_docs = vector_store.similarity_search(
+    #     query["query"],
+    #     filter=lambda doc: doc.metadata.get("section") == query["section"],
+    #     k=3,
+    # )
     return {"context": retrieved_docs}
 
 
@@ -142,9 +142,9 @@ def generate(state:State):
 graph_builder = StateGraph(State)
 graph_builder.add_node("retrieve", retrieve)
 graph_builder.add_node("generate", generate)
-graph_builder.add_node("analyze_query", analyze_query)
-graph_builder.add_edge(START, "analyze_query")
-graph_builder.add_edge("analyze_query", "retrieve")
+# graph_builder.add_node("analyze_query", analyze_query)
+graph_builder.add_edge(START, "retrieve")
+# graph_builder.add_edge("analyze_query", "retrieve")
 graph_builder.add_edge("retrieve", "generate")
 graph_builder.add_edge("generate", END)
 graph = graph_builder.compile()
