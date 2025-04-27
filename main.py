@@ -11,6 +11,7 @@ from typing_extensions import Annotated
 from langchain_core.documents import Document
 from typing_extensions import List, TypedDict
 from langchain.prompts import ChatPromptTemplate
+from langgraph.checkpoint.memory import MemorySaver
 from langchain.memory import ConversationBufferMemory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
@@ -38,11 +39,7 @@ llm = ChatGroq(
     model_name="llama-3.3-70b-versatile"
 )
 
-memory = ConversationBufferMemory(
-    return_messages=True,
-    memory_key="chat_history",
-    input_key="input"
-)
+memory =MemorySaver()
 print("Loading embedding model...")
 model_kwargs = {'device': 'cpu'} 
 encode_kwargs = {'normalize_embeddings': False}
@@ -74,41 +71,14 @@ all_splits = text_splitter.split_documents(docs)
 
 
 total_documents = len(all_splits)
-third = total_documents // 3
-print("Assigning sections...")
-for i, document in enumerate(all_splits):
-    if i < third:
-        document.metadata["section"] = "beginning"
-    elif i < 2 * third:
-        document.metadata["section"] = "middle"
-    else:
-        document.metadata["section"] = "end"
 
-
-
-# vector_store = InMemoryVectorStore(embeddings)
-# _ = vector_store.add_documents(all_splits)
 
 _ = vector_store.add_documents(documents=all_splits)
 
 prompt = hub.pull("rlm/rag-prompt")
 
 
-# @tool(response_format="content_and_artifact")
-# def retrieve(query: str):
-#     """Retrieve documents from the vector store."""
-#     retrieved_docs = vector_store.similarity_search(query, k=3)
-#     serialized="\n\n".join((f"Source: {doc.metadata['source']}\n" f"Content: {doc.page_content}") for doc in retrieved_docs)
 
-#     return retrieved_docs,serialized
-
-# class Search(TypedDict):
-#     query:Annotated[str, ..., "Search query to run."]
-#     section: Annotated[
-#         Literal["beginning", "middle", "end"],
-#         ...,
-#         "Section to query.",
-#     ]
 
 class State(TypedDict):
     question:str
@@ -147,7 +117,7 @@ graph_builder.add_edge(START, "retrieve")
 # graph_builder.add_edge("analyze_query", "retrieve")
 graph_builder.add_edge("retrieve", "generate")
 graph_builder.add_edge("generate", END)
-graph = graph_builder.compile()
+graph = graph_builder.compile(checkpointer=memory)
 
 response = graph.invoke({"question": "What does the end of the post say about Task Decomposition?"})
 print(response["answer"])
